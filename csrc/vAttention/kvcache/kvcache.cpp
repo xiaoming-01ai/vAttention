@@ -34,7 +34,6 @@ bool KVCache::bind_fp32(int heads, int seqs, const void **keys)
 {
     this->keys = keys;
     try {
-        fprintf(stderr, "kvcache %d %d\n", heads, seqs);
         index->bind_fp32(heads, seqs, this->keys);
         return true;
     } catch (const std::exception &ex) {
@@ -55,10 +54,10 @@ bool KVCache::bind_bf16(int heads, int seqs, const void **keys)
     }
 }
     
-int KVCache::search(int heans, const float **q, int k, int **labels)
+int KVCache::search(int heads, const float **q, int k, int **labels)
 {
     try {
-        return index->search(heans, q, k, labels);
+        return index->search(heads, q, k, labels);
     } catch (const std::exception &ex) {
         fprintf(stderr, "KVCache bind exception[%s]\n", ex.what());
         return 0;

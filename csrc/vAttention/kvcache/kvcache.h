@@ -6,9 +6,8 @@ VATTN_NAMESPACE_BEGIN
 
 struct KVCache {
     int    head_dim;
-    int    kv_head_num;
     const void **keys;
-    // const void **vals;
+    const void **vals;
 
     CacheIndexPtr index;
 
