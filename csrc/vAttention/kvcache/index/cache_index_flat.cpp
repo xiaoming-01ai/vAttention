@@ -8,7 +8,7 @@ VATTN_NAMESPACE_BEGIN
 void CacheIndexFlat::bind_fp32(int heads, int seqs, const void **keys) 
 {
     CacheIndex::bind_fp32(heads, seqs, keys);
-    metric = get_metric(METRIC_IP, VECTOR_FP32);
+    metric = get_metric(METRIC_IP, VectorType::VECTOR_FP32);
 }
     
 int CacheIndexFlat::search(int heads, const float **q, int k, int **labels) const

@@ -45,7 +45,7 @@ void ProductQuantizer::train(size_t n, const float* x)
 
 void ProductQuantizer::compute_code(const float* x, uint16_t* code) const 
 {
-    Metric metric = get_metric(METRIC_L2, VECTOR_FP32);
+    Metric metric = get_metric(METRIC_L2, VectorType::VECTOR_FP32);
     for (size_t m = 0; m < M; ++m) {
         size_t idxm = 0;
         float  dism = std::numeric_limits<float>::max();

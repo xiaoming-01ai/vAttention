@@ -210,7 +210,7 @@ public:
 Metric get_ip_metric(VectorType vtype)
 {
     switch (vtype) {
-    case VECTOR_FP32:
+    case VectorType::VECTOR_FP32:
         return FP32IPMetric(); 
     default:
         VATTN_THROW_MSG("ip metric only support vector type 'VECTOR_BF16/VECTOR_FP32'");
@@ -220,7 +220,7 @@ Metric get_ip_metric(VectorType vtype)
 Metric get_l2_metric(VectorType vtype)
 {
     switch (vtype) {
-    case VECTOR_FP32:
+    case VectorType::VECTOR_FP32:
         return FP32L2Metric(); 
     default:
         VATTN_THROW_MSG("ip metric only support vector type 'VECTOR_FP32'");

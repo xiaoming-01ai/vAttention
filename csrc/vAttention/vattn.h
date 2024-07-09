@@ -14,10 +14,10 @@
 
 VATTN_NAMESPACE_BEGIN
 
-uint64_t create_attention();
+// uint64_t create_attention();
 
-bool attention();
+// bool attention();
 
-void release_attention(uint64_t attn_id);
+// void release_attention(uint64_t attn_id);
 
 VATTN_NAMESPACE_END

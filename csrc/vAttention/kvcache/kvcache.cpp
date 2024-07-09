@@ -35,6 +35,7 @@ bool KVCache::bind_fp32(int heads, int seqs, const void **keys)
     this->keys = keys;
     try {
         index->bind_fp32(heads, seqs, this->keys);
+        vector_type = VectorType::VECTOR_FP32;
         return true;
     } catch (const std::exception &ex) {
         fprintf(stderr, "KVCache bind exception[%s]\n", ex.what());
@@ -47,6 +48,7 @@ bool KVCache::bind_bf16(int heads, int seqs, const void **keys)
     this->keys = keys;
     try {
         index->bind_bf16(heads, seqs, this->keys);
+        vector_type = VectorType::VECTOR_FP32;
         return true;
     } catch (const std::exception &ex) {
         fprintf(stderr, "KVCache bind exception[%s]\n", ex.what());
