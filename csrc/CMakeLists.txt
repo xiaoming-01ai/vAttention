@@ -1,0 +1,28 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.20 FATAL_ERROR)
+
+SET(CMAKE_MINIMUM_VERSION 3.20)
+PROJECT(xAttention LANGUAGES C CXX)
+
+SET(VERSION_MAJOR 0)   
+SET(VERSION_MINOR 0)
+SET(VERSION_PATCH 1)
+
+STRING(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S")
+
+MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fopenmp -fPIC -mavx512f -mavx512dq  -mavx512vl -mfma -mavx512bw")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g2 -ggdb -DDEBUG -fsanitize=address") 
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -Wall -flto") 
+
+LINK_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}/deps/install/lib/")
+
+IF(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+    MESSAGE(FATAL_ERROR "cannot build the project in the source directory! Out-of-source build is enforced!")
+ENDIF()
+
+SET(VCACHE_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/src
+                   ${CMAKE_CURRENT_LIST_DIR}/deps/install/include)
+SET(VCACHE_INSTALL ${CMAKE_CURRENT_LIST_DIR}/deps/install/)
+
+ADD_SUBDIRECTORY(core)
+#ADD_SUBDIRECTORY(python)
