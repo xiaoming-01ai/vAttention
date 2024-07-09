@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vattn.h"
+#include "kvcache/kvcache.h"
 #include "common/vattn_assert.h"
 
 #include <mutex>
@@ -8,24 +9,51 @@
 
 VATTN_NAMESPACE_BEGIN
 
-struct Attention {
-
-    Attention(int head_size, int head_dim)
-        : head_size(head_size), head_dim(head_dim)
-    { }
+class Attention {
+public:
+    Attention(int head_size, 
+              int head_dim,
+              int max_tokens,
+              int min_seqs,
+              const std::string &desc)
+        : head_size(head_size), 
+          head_dim(head_dim),
+          max_tokens(max_tokens),
+          min_seqs(min_seqs)
+    { 
+        kvcache_index = std::make_shared<KVCache>(head_dim, desc);
+    }
 
     virtual ~Attention() = default;
 
-    bool cache(const void *key, const void *value, int kv_cnt);
+    void cache_fp32(const void *k, const void *v, int seqs, cudaStream_t stream);
+    void cache_bf16(const void *k, const void *v, int seqs, cudaStream_t stream);
+    
+    std::vector<float> forward_decode_fp32(const void *q, 
+                                           int q_head_size, 
+                                           int q_head_dim, 
+                                           int topk);
+    
+    void release();
 
-    bool forward_prefix(const void *query);
-    bool forward_decode(const void *query);
+private:
+    std::vector<int> search_fp32(const void *q, int q_head_size, int head_dim, int topk);
+    // template <int ELEMENT_SIZE>
+    // void sync_data(const void *key, const void *value, int seqs);
 
-    void release()
-    { }
-
+private:
     int head_size;
     int head_dim;
+    int max_tokens;
+    int min_seqs;
+
+    int padding_cnt;
+
+    char *k_prompt{nullptr};
+    char *v_prompt{nullptr};
+    char *k_padding{nullptr};
+    char *v_padding{nullptr};
+    KVCachePtr kvcache_index{nullptr};
 };
 using AttentionPtr = std::shared_ptr<Attention>;
 
@@ -42,7 +70,7 @@ struct AttentionManager {
         std::lock_guard<std::mutex> lock(lock_mutex);
         return 0;
     }
-    
+
     void release_attention(uint64_t attn_id)
     {
         std::lock_guard<std::mutex> lock(lock_mutex);

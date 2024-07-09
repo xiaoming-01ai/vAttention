@@ -8,6 +8,11 @@
 #include <string.h>
 #include <iostream>
 
+#include <cuda.h>
+#include <cuda_fp16.h>
+#include <cuda_runtime.h>
+#include <cublas_v2.h>
+
 #define VATTN_NAMESPACE_BEGIN namespace vAttention { 
 #define VATTN_NAMESPACE_END } 
 #define VATTN_NAMESPACE_USE using namespace vAttention;

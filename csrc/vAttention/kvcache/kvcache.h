@@ -9,18 +9,19 @@ struct KVCache {
     KVCache(int d, const std::string &index_desc);
 
     bool bind_fp32(int heads, int seqs, const void **keys);
+    // bool bind_fp32(int heads, int seqs, const void *keys) {}
     bool bind_bf16(int heads, int seqs, const void **keys);
+    // bool bind_bf16(int heads, int seqs, const void *keys) {}
 
     int search(int heads, const float **q, int k, int **labels);
 
-    int    head_dim;
     VectorType vector_type;
+    int    head_dim;
+    int    seqs;
     const void **keys;
     const void **vals;
 
     CacheIndexPtr index;
-
-
 };
 using KVCachePtr = std::shared_ptr<KVCache>;
 
