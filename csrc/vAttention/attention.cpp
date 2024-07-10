@@ -1,5 +1,7 @@
 #include "attention.h"
+#include "kernel.h"
 #include "kvcache/index/metric_type.h"
+
 
 VATTN_NAMESPACE_BEGIN
 
@@ -122,24 +124,18 @@ std::vector<float> Attention::forward_decode_fp32(const void *q,
             scores_ptr[j] /= exp_sum;
         }
 
-        // matmal V
+        // matmal V (prompt topk)
         float *output_ptr = output.data() + i * head_dim;
         const float *v_prompt_ptr = (const float *)v_prompt + i * head_size * head_dim;
         for (int j = 0; j < topk; ++j) {
-            float scale = scores_ptr[j];
             const float *v_ptr = v_prompt_ptr + labels_ptr[j] * head_dim;
-            for (int k = 0; k < head_dim; k++) {
-                output_ptr[k] += scale * v_ptr[k];
-            }
+            compute_v_fp32(output_ptr, v_ptr, scores_ptr[j], head_dim);
         }
-
+        // matmul V (padding)
         const float *v_padding_ptr = (const float *)v_padding + i * max_tokens;
         for (int j = 0; j < padding_cnt; ++j) {
-            float scale = scores_ptr[j + topk];
             const float *v_ptr = v_padding_ptr + j * head_dim;
-            for (int k = 0; k < head_dim; k++) {
-                output_ptr[k] += scale * v_ptr[k];
-            }
+            compute_v_fp32(output_ptr, v_ptr, scores_ptr[j + topk], head_dim);
         }
     }
     return output;
@@ -148,11 +144,11 @@ std::vector<float> Attention::forward_decode_fp32(const void *q,
 std::vector<int> Attention::search_fp32(const void *q, int q_head_size, int q_head_dim, int topk)
 {
     VATTN_THROW_IF_NOT_FMT(head_dim == q_head_dim,
-                           "Invalid Q head_dim(%d) != kv head_dim(%d)",
+                           "Invalid Q head_dim(%d) != KV head_dim(%d)",
                             q_head_dim, head_dim);
 
     VATTN_THROW_IF_NOT_FMT((head_size % q_head_size) == 0,
-                            "Invalid Q head_size(%d) %% kv head_size(%d) != 0",
+                            "Invalid Q head_size(%d) %% KV head_size(%d) != 0",
                             q_head_size, head_size);
 
     VATTN_THROW_IF_NOT_FMT(q != nullptr, "Invalid Q(%p)", q);
