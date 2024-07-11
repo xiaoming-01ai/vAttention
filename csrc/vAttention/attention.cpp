@@ -5,32 +5,47 @@
 
 VATTN_NAMESPACE_BEGIN
 
+Attention::Attention(int head_size, int head_dim, int max_tokens, const std::string &desc)
+    : head_size(head_size),
+      head_dim(head_dim),
+      max_tokens(max_tokens)
+{
+    kvcache_index = std::make_shared<KVCache>(head_dim, desc);
+}
+
 void Attention::cache_fp32(const void *k, const void *v, int seqs, cudaStream_t stream)
 {
     VATTN_ASSERT(kvcache_index != nullptr);
-    if (k_prompt == nullptr) {
+    if (k_prefill == nullptr) {
+        // first time cache KV cache, seqs > 1
+
+        // allocate prefill KV cache buffer
         size_t bytes = sizeof(float) * seqs * head_dim * head_size;
-        k_prompt = new char[bytes];
-        v_prompt = new char[bytes];
-        
-        cudaMemcpyAsync(k_prompt, k, bytes, cudaMemcpyDeviceToHost, stream);
-        cudaMemcpyAsync(v_prompt, v, bytes, cudaMemcpyDeviceToHost, stream);
+        k_prefill = new char[bytes];
+        v_prefill = new char[bytes];
+
+        // copy KV cache from GPU to host 
+        cudaMemcpyAsync(k_prefill, k, bytes, cudaMemcpyDeviceToHost, stream);
+        cudaMemcpyAsync(v_prefill, v, bytes, cudaMemcpyDeviceToHost, stream);
         auto cuda_error = cudaStreamSynchronize(stream);
         VATTN_THROW_IF_NOT_FMT(cuda_error == cudaSuccess,
                                "Attention copy FP32 K/V to host failed. cudaError(%s::%s)",
                                cudaGetErrorName(cuda_error), cudaGetErrorString(cuda_error));
 
+        // bind host KV cache to index 
+        std::vector<const void *> keys(head_size);
+        for (size_t i = 0; i < keys.size(); ++i) {
+            keys[i] = k_prefill + sizeof(float) * seqs * head_dim * i; 
+        }
+        kvcache_index->bind_fp32(head_size, seqs, keys.data());
+
+        // allocate padding KV cache buffer for KV cache(forward_decode) 
         bytes = sizeof(float) * max_tokens * head_dim * head_size;
         k_padding = new char[bytes];
         v_padding = new char[bytes];
-
-        std::vector<const void *> keys(head_size);
-        for (size_t i = 0; i < keys.size(); ++i) {
-            keys[i] = k_prompt + sizeof(float) * seqs * head_dim * i; 
-        }
-        kvcache_index->bind_fp32(head_size, seqs, keys.data());
         padding_cnt = 0;
     } else {
+        // padding the decode_forward KV cahce, seqs = 1
         VATTN_THROW_IF_NOT_FMT(seqs + padding_cnt < max_tokens,
                                "Exceeded the maximun token limit(%d)", max_tokens);
 
@@ -41,49 +56,49 @@ void Attention::cache_fp32(const void *k, const void *v, int seqs, cudaStream_t 
         cudaMemcpyAsync(v_padding + padding_offset, v, bytes, cudaMemcpyDeviceToHost, stream);
         auto cuda_error = cudaStreamSynchronize(stream);
         VATTN_THROW_IF_NOT_FMT(cuda_error == cudaSuccess,
-                               "Attention copy FP32 K/V to host failed. cudaError(%s::%s)",
+                               "Attention padding FP32 K/V to host failed. cudaError(%s::%s)",
                                cudaGetErrorName(cuda_error), cudaGetErrorString(cuda_error));
         padding_cnt += seqs;
     }
 }
 
-void Attention::cache_bf16(const void *k, const void *v, int seqs, cudaStream_t stream)
-{
-    VATTN_ASSERT(kvcache_index != nullptr);
-    if (k_prompt == nullptr) {
-        size_t bytes = (size_t)2LL * seqs * head_dim * head_size;
-        k_prompt = new char[bytes];
-        v_prompt = new char[bytes];
+// void Attention::cache_bf16(const void *k, const void *v, int seqs, cudaStream_t stream)
+// {
+//     VATTN_ASSERT(kvcache_index != nullptr);
+//     if (k_prefill == nullptr) {
+//         size_t bytes = (size_t)2LL * seqs * head_dim * head_size;
+//         k_prefill = new char[bytes];
+//         v_prefill = new char[bytes];
         
-        cudaMemcpyAsync(k_prompt, k, bytes, cudaMemcpyDeviceToHost, stream);
-        cudaMemcpyAsync(v_prompt, v, bytes, cudaMemcpyDeviceToHost, stream);
-        auto cuda_error = cudaStreamSynchronize(stream);
-        VATTN_THROW_IF_NOT_FMT(cuda_error == cudaSuccess,
-                               "Attention copy BF16 K/V to host failed. cudaError(%s::%s)",
-                               cudaGetErrorName(cuda_error), cudaGetErrorString(cuda_error));
+//         cudaMemcpyAsync(k_prefill, k, bytes, cudaMemcpyDeviceToHost, stream);
+//         cudaMemcpyAsync(v_prefill, v, bytes, cudaMemcpyDeviceToHost, stream);
+//         auto cuda_error = cudaStreamSynchronize(stream);
+//         VATTN_THROW_IF_NOT_FMT(cuda_error == cudaSuccess,
+//                                "Attention copy BF16 K/V to host failed. cudaError(%s::%s)",
+//                                cudaGetErrorName(cuda_error), cudaGetErrorString(cuda_error));
 
-        bytes = 2 * max_tokens * head_dim * head_size;
-        k_padding = new char[bytes];
-        v_padding = new char[bytes];
+//         bytes = 2 * max_tokens * head_dim * head_size;
+//         k_padding = new char[bytes];
+//         v_padding = new char[bytes];
 
-        std::vector<const void *> keys(head_size);
-        for (size_t i = 0; i < keys.size(); ++i) {
-            keys[i] = k_prompt + size_t(2L) * seqs * head_dim * i; 
-        }
-        kvcache_index->bind_bf16(head_size, seqs, keys.data());
-    } else {
-        VATTN_THROW_IF_NOT_FMT(seqs + padding_cnt < max_tokens,
-                               "Exceeded the maximun token limit(%d)", max_tokens);
+//         std::vector<const void *> keys(head_size);
+//         for (size_t i = 0; i < keys.size(); ++i) {
+//             keys[i] = k_prefill + size_t(2L) * seqs * head_dim * i; 
+//         }
+//         kvcache_index->bind_bf16(head_size, seqs, keys.data());
+//     } else {
+//         VATTN_THROW_IF_NOT_FMT(seqs + padding_cnt < max_tokens,
+//                                "Exceeded the maximun token limit(%d)", max_tokens);
 
-        size_t bytes = size_t(2L) * seqs * head_dim * head_size;
-        cudaMemcpyAsync(k_padding, k, bytes, cudaMemcpyDeviceToHost, stream);
-        cudaMemcpyAsync(v_padding, v, bytes, cudaMemcpyDeviceToHost, stream);
-        auto cuda_error = cudaStreamSynchronize(stream);
-        VATTN_THROW_IF_NOT_FMT(cuda_error == cudaSuccess,
-                               "Attention copy BF16 K/V to host failed. cudaError(%s::%s)",
-                               cudaGetErrorName(cuda_error), cudaGetErrorString(cuda_error));
-    }
-}
+//         size_t bytes = size_t(2L) * seqs * head_dim * head_size;
+//         cudaMemcpyAsync(k_padding, k, bytes, cudaMemcpyDeviceToHost, stream);
+//         cudaMemcpyAsync(v_padding, v, bytes, cudaMemcpyDeviceToHost, stream);
+//         auto cuda_error = cudaStreamSynchronize(stream);
+//         VATTN_THROW_IF_NOT_FMT(cuda_error == cudaSuccess,
+//                                "Attention copy BF16 K/V to host failed. cudaError(%s::%s)",
+//                                cudaGetErrorName(cuda_error), cudaGetErrorString(cuda_error));
+//     }
+// }
     
 std::vector<float> Attention::forward_decode_fp32(const void *q, 
                                                   int q_head_size, 
@@ -104,11 +119,11 @@ std::vector<float> Attention::forward_decode_fp32(const void *q,
         int   *labels_ptr = labels.data() + i * topk;
         float *scores_ptr = scores.data() + i * kv_size;
         const float *q_ptr = (const float *)q + i * q_head_dim;
-        const float *k_prompt_ptr = (const float *)k_prompt + i * head_size * head_dim;
+        const float *k_prefill_ptr = (const float *)k_prefill + i * head_size * head_dim;
 
         float exp_sum = 0;
         for (int j = 0; j < topk; ++j) {
-            float exp = std::exp(metric(q_ptr, k_prompt_ptr + labels_ptr[j] * head_dim, bytes));
+            float exp = std::exp(metric(q_ptr, k_prefill_ptr + labels_ptr[j] * head_dim, bytes));
             exp_sum += exp;
             scores_ptr[j] = exp;
         }
@@ -124,11 +139,11 @@ std::vector<float> Attention::forward_decode_fp32(const void *q,
             scores_ptr[j] /= exp_sum;
         }
 
-        // matmal V (prompt topk)
+        // matmal V (prefill topk)
         float *output_ptr = output.data() + i * head_dim;
-        const float *v_prompt_ptr = (const float *)v_prompt + i * head_size * head_dim;
+        const float *v_prefill_ptr = (const float *)v_prefill + i * head_size * head_dim;
         for (int j = 0; j < topk; ++j) {
-            const float *v_ptr = v_prompt_ptr + labels_ptr[j] * head_dim;
+            const float *v_ptr = v_prefill_ptr + labels_ptr[j] * head_dim;
             compute_v_fp32(output_ptr, v_ptr, scores_ptr[j], head_dim);
         }
         // matmul V (padding)
@@ -169,16 +184,10 @@ std::vector<int> Attention::search_fp32(const void *q, int q_head_size, int q_he
     
 void Attention::release()
 {
-    #define DELETE_AND_SET_NULLPTR(ptr) \
-    { \
-        delete[] ptr; \
-        ptr = nullptr; \
-    }
-    DELETE_AND_SET_NULLPTR(k_prompt);
-    DELETE_AND_SET_NULLPTR(v_prompt);
+    DELETE_AND_SET_NULLPTR(k_prefill);
+    DELETE_AND_SET_NULLPTR(v_prefill);
     DELETE_AND_SET_NULLPTR(k_padding);
     DELETE_AND_SET_NULLPTR(v_padding);
-    #undef DELETE_AND_SET_NULLPTR
 }
 
 VATTN_NAMESPACE_END

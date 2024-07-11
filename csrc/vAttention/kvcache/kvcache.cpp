@@ -10,8 +10,8 @@ VATTN_NAMESPACE_BEGIN
 KVCache::KVCache(int head_dim, const std::string &index_desc)
 {
     VATTN_THROW_IF_NOT_FMT(head_dim != 0 && head_dim <= 65536,
-                            "The head_dim %d shoule be > 0 and < 65536",
-                            head_dim);
+                           "The head_dim %d shoule be > 0 and < 65536",
+                           head_dim);
     
     std::smatch sm;
     auto match = [&sm, index_desc](const std::string& pattern) {
@@ -30,32 +30,20 @@ KVCache::KVCache(int head_dim, const std::string &index_desc)
     }
 }
     
-bool KVCache::bind_fp32(int heads, int seqs, const void **keys) 
+void KVCache::bind_fp32(int heads, int seqs, const void **keys) 
 {
     this->keys = keys;
     this->seqs = seqs;
-    try {
-        index->bind_fp32(heads, seqs, this->keys);
-        vector_type = VectorType::VECTOR_FP32;
-        return true;
-    } catch (const std::exception &ex) {
-        fprintf(stderr, "KVCache bind exception[%s]\n", ex.what());
-        return false;
-    }
+    index->bind_fp32(heads, seqs, this->keys);
+    vector_type = VectorType::VECTOR_FP32;
 }
-    
-bool KVCache::bind_bf16(int heads, int seqs, const void **keys)
+
+void KVCache::bind_bf16(int heads, int seqs, const void **keys)
 {
     this->keys = keys;
     this->seqs = seqs;
-    try {
-        index->bind_bf16(heads, seqs, this->keys);
-        vector_type = VectorType::VECTOR_FP32;
-        return true;
-    } catch (const std::exception &ex) {
-        fprintf(stderr, "KVCache bind exception[%s]\n", ex.what());
-        return false;
-    }
+    index->bind_bf16(heads, seqs, this->keys);
+    vector_type = VectorType::VECTOR_FP32;
 }
     
 int KVCache::search(int heads, const float **q, int k, int **labels)

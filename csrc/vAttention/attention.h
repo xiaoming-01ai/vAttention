@@ -11,46 +11,29 @@ VATTN_NAMESPACE_BEGIN
 
 class Attention {
 public:
-    Attention(int head_size, 
-              int head_dim,
-              int max_tokens,
-              int min_seqs,
-              const std::string &desc)
-        : head_size(head_size), 
-          head_dim(head_dim),
-          max_tokens(max_tokens),
-          min_seqs(min_seqs)
-    { 
-        kvcache_index = std::make_shared<KVCache>(head_dim, desc);
-    }
-
-    virtual ~Attention() = default;
+    Attention(int head_size, int head_dim, int max_tokens, const std::string &desc);
+    ~Attention() = default;
 
     void cache_fp32(const void *k, const void *v, int seqs, cudaStream_t stream);
-    void cache_bf16(const void *k, const void *v, int seqs, cudaStream_t stream);
+    // void cache_bf16(const void *k, const void *v, int seqs, cudaStream_t stream);
     
-    std::vector<float> forward_decode_fp32(const void *q, 
-                                           int q_head_size, 
-                                           int q_head_dim, 
-                                           int topk);
+    std::vector<float> forward_decode_fp32(const void *q, int head_size, int head_dim, int topk);
+    // std::vector<bf16> forward_decode_bf16(const void *q, int head_size, int head_dim, int topk);
     
     void release();
 
 private:
-    std::vector<int> search_fp32(const void *q, int q_head_size, int head_dim, int topk);
-    // template <int ELEMENT_SIZE>
-    // void sync_data(const void *key, const void *value, int seqs);
+    std::vector<int> search_fp32(const void *q, int head_size, int head_dim, int topk);
 
 private:
     int head_size;
     int head_dim;
     int max_tokens;
-    int min_seqs;
 
     int padding_cnt;
 
-    char *k_prompt{nullptr};
-    char *v_prompt{nullptr};
+    char *k_prefill{nullptr};
+    char *v_prefill{nullptr};
     char *k_padding{nullptr};
     char *v_padding{nullptr};
     KVCachePtr kvcache_index{nullptr};

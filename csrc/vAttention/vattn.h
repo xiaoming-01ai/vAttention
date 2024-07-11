@@ -16,6 +16,12 @@
 #define VATTN_NAMESPACE_BEGIN namespace vAttention { 
 #define VATTN_NAMESPACE_END } 
 #define VATTN_NAMESPACE_USE using namespace vAttention;
+    
+#define DELETE_AND_SET_NULLPTR(ptr) \
+{ \
+    delete[] ptr; \
+    ptr = nullptr; \
+}
 
 VATTN_NAMESPACE_BEGIN
 
