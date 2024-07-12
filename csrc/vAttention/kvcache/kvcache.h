@@ -15,7 +15,7 @@ struct KVCache {
 
     VectorType vector_type;
     int    head_dim;
-    int    seqs;
+    int    seqs_len;
     const void **keys;
     const void **vals;
 

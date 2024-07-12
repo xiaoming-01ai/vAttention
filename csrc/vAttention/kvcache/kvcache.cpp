@@ -33,7 +33,7 @@ KVCache::KVCache(int head_dim, const std::string &index_desc)
 void KVCache::bind_fp32(int heads, int seqs, const void **keys) 
 {
     this->keys = keys;
-    this->seqs = seqs;
+    this->seqs_len = seqs;
     index->bind_fp32(heads, seqs, this->keys);
     vector_type = VectorType::VECTOR_FP32;
 }
@@ -41,7 +41,7 @@ void KVCache::bind_fp32(int heads, int seqs, const void **keys)
 void KVCache::bind_bf16(int heads, int seqs, const void **keys)
 {
     this->keys = keys;
-    this->seqs = seqs;
+    this->seqs_len = seqs;
     index->bind_bf16(heads, seqs, this->keys);
     vector_type = VectorType::VECTOR_FP32;
 }

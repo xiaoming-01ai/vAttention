@@ -11,63 +11,82 @@ VATTN_NAMESPACE_BEGIN
 
 class Attention {
 public:
-    Attention(int head_size, int head_dim, int max_tokens, const std::string &desc);
+    Attention(const std::string &cache_desc);
     ~Attention() = default;
 
-    void cache_fp32(const void *k, const void *v, int seqs, cudaStream_t stream);
-    // void cache_bf16(const void *k, const void *v, int seqs, cudaStream_t stream);
+    void cache_fp32(const void *k, 
+                    const void *v, 
+                    int seqs_len, 
+                    int head_cnt,
+                    int head_dim,
+                    int max_tokens,
+                    cudaStream_t stream);
     
-    std::vector<float> forward_decode_fp32(const void *q, int head_size, int head_dim, int topk);
-    // std::vector<bf16> forward_decode_bf16(const void *q, int head_size, int head_dim, int topk);
+    std::vector<float> forward_decode_fp32(const void *q, int head_cnt, int head_dim, int topk);
     
     void release();
 
 private:
-    std::vector<int> search_fp32(const void *q, int head_size, int head_dim, int topk);
+    std::vector<int> search_fp32(const void *q, int head_cnt, int head_dim, int topk);
 
 private:
-    int head_size;
-    int head_dim;
-    int max_tokens;
+    int head_cnt_;
+    int head_dim_;
 
-    int padding_cnt;
+    int max_tokens_;
+    int padding_cnt_;
 
-    char *k_prefill{nullptr};
-    char *v_prefill{nullptr};
-    char *k_padding{nullptr};
-    char *v_padding{nullptr};
+    char *k_prefill_{nullptr};
+    char *v_prefill_{nullptr};
+    char *k_padding_{nullptr};
+    char *v_padding_{nullptr};
     KVCachePtr kvcache_index{nullptr};
+
+    std::string cache_desc_;
 };
 using AttentionPtr = std::shared_ptr<Attention>;
 
 struct AttentionManager {
 
-    AttentionManager *get_instance()
+    static AttentionManager *get_instance()
     {
         static AttentionManager ins;
         return &ins;
     }
 
-    uint64_t create_attention(int head_size, int head_dim)
+    AttentionPtr create_attention(uint64_t seq_id)
     {
         std::lock_guard<std::mutex> lock(lock_mutex);
-        return 0;
+        auto ite = attns.find(seq_id);
+        if (ite == nullptr) {
+            auto attn = std::make_shared<Attention>(cache_desc);
+            auto ret = attns.insert(std::make_pair(seq_id, attn));
+            VATTN_THROW_IF_NOT_MSG(ret.second, "Insert attention failed.");
+            ite = ret.first;
+        }
+        return ite->second;
     }
 
-    void release_attention(uint64_t attn_id)
+    void release_attention(uint64_t seq_id)
     {
         std::lock_guard<std::mutex> lock(lock_mutex);
-        auto ite = attentions.find(attn_id);
-        VATTN_THROW_IF_NOT_FMT(ite != attentions.end(), 
-                               "Invalid attention instance(%lu)", attn_id);
+        auto ite = attns.find(seq_id);
+        VATTN_THROW_IF_NOT_FMT(ite != attns.end(), 
+                               "Invalid attention instance(%lu)", seq_id);
 
         auto attn = ite->second;
         attn->release();
-        attentions.erase(ite);
+        attns.erase(ite);
+    }
+
+    void set_cache_desc(const std::string &desc)
+    {
+        cache_desc = desc;
     }
 
     std::mutex lock_mutex;
-    std::unordered_map<uint64_t, AttentionPtr> attentions;
+    std::unordered_map<uint64_t, AttentionPtr> attns;
+    std::string cache_desc{"FSPQ32"};
 };
 
 VATTN_NAMESPACE_END

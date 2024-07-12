@@ -25,10 +25,18 @@
 
 VATTN_NAMESPACE_BEGIN
 
-// uint64_t create_attention();
+void attention_cache_fp32(const uint64_t *req_ids,
+                          const void *key,
+                          const void *value,
+                          int batch_size,
+                          int *seqs_len,
+                          int head_size,
+                          int head_dim,
+                          int max_tokens,
+                          cudaStream_t stream);
 
-// bool attention();
+void attention_forward();
 
-// void release_attention(uint64_t attn_id);
+void attention_finish(const uint64_t *req_ids, int cnt);
 
 VATTN_NAMESPACE_END
