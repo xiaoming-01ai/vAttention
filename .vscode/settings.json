@@ -1,0 +1,6 @@
+{
+    "cmake.sourceDirectory": "/ML-A100/team/infra/home/xiaoming/vAttention/csrc",
+    "files.associations": {
+        "new": "cpp"
+    }
+}
