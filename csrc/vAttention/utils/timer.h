@@ -1,9 +1,9 @@
 #pragma once 
 
-#include "vattn.h"
+#include "vcache.h"
 #include <chrono>
 
-VATTN_NAMESPACE_BEGIN
+VCACHE_NAMESPACE_BEGIN
 
 class Timer {
 public:
@@ -27,4 +27,4 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> start_;
 };
 
-VATTN_NAMESPACE_END
+VCACHE_NAMESPACE_END
