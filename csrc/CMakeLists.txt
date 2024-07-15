@@ -20,7 +20,8 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fopenmp -fPIC -mavx512f -mav
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g2 -ggdb -DDEBUG -fsanitize=address") 
 set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -Wall -flto") 
 
-LINK_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}/deps/install/lib/")
+LINK_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}/deps/install/lib/"
+                 ${CUDA_PATH}/targets/x86_64-linux/lib/)
 
 IF(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     MESSAGE(FATAL_ERROR "cannot build the project in the source directory! Out-of-source build is enforced!")

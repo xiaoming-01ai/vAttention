@@ -21,9 +21,14 @@ public:
                     int head_dim,
                     int max_tokens,
                     cudaStream_t stream);
-    
-    std::vector<float> forward_decode_fp32(const void *q, int head_cnt, int head_dim, int topk);
-    
+
+    void forward_fp32(const float *q,
+                      int head_cnt,
+                      int head_dim,
+                      int topk,
+                      float *output,
+                      cudaStream_t stream);
+
     void release();
 
 private:
@@ -54,29 +59,41 @@ struct AttentionManager {
         return &ins;
     }
 
-    AttentionPtr create_attention(uint64_t seq_id)
+    AttentionPtr fetch_attention(uint64_t attn) 
     {
         std::lock_guard<std::mutex> lock(lock_mutex);
-        auto ite = attns.find(seq_id);
+        auto ite = attns.find(attn);
+        VATTN_THROW_IF_NOT_FMT(ite != attns.end(), "Fetch invalid attention(%lu)", attn);
+        return ite->second;
+    }
+    
+    AttentionPtr create_attention(uint64_t attn)
+    {
+        std::lock_guard<std::mutex> lock(lock_mutex);
+        auto ite = attns.find(attn);
         if (ite == nullptr) {
-            auto attn = std::make_shared<Attention>(cache_desc);
-            auto ret = attns.insert(std::make_pair(seq_id, attn));
+            auto attn_ptr = std::make_shared<Attention>(cache_desc);
+            auto ret = attns.insert(std::make_pair(attn, attn_ptr));
             VATTN_THROW_IF_NOT_MSG(ret.second, "Insert attention failed.");
             ite = ret.first;
         }
         return ite->second;
     }
 
-    void release_attention(uint64_t seq_id)
+    void release_attention(uint64_t attn)
     {
-        std::lock_guard<std::mutex> lock(lock_mutex);
-        auto ite = attns.find(seq_id);
-        VATTN_THROW_IF_NOT_FMT(ite != attns.end(), 
-                               "Invalid attention instance(%lu)", seq_id);
-
-        auto attn = ite->second;
-        attn->release();
-        attns.erase(ite);
+        AttentionPtr attn_ptr = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(lock_mutex);
+            auto ite = attns.find(attn);
+            if (ite != attns.end()) {
+                attn_ptr = ite->second;
+                attns.erase(ite);
+            }
+        }
+        if (attn_ptr != nullptr) {
+            attn_ptr->release();
+        }
     }
 
     void set_cache_desc(const std::string &desc)

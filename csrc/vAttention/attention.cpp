@@ -31,7 +31,7 @@ void Attention::cache_fp32(const void *k,
         // first time cache KV cache, seqs > 1
 
         // allocate prefill KV cache buffer
-        size_t bytes = sizeof(float) * seqs_len * head_dim_ * head_cnt_;
+        std::size_t bytes = sizeof(float) * seqs_len * head_dim_ * head_cnt_;
         k_prefill_ = new char[bytes];
         v_prefill_ = new char[bytes];
 
@@ -45,7 +45,7 @@ void Attention::cache_fp32(const void *k,
 
         // bind host KV cache to index 
         std::vector<const void *> keys(head_cnt_);
-        for (size_t i = 0; i < keys.size(); ++i) {
+        for (std::size_t i = 0; i < keys.size(); ++i) {
             keys[i] = k_prefill_ + sizeof(float) * seqs_len * head_dim_ * i; 
         }
         kvcache_index->bind_fp32(head_cnt_, seqs_len, keys.data());
@@ -61,9 +61,9 @@ void Attention::cache_fp32(const void *k,
         VATTN_THROW_IF_NOT_FMT(seqs_len + padding_cnt_ < max_tokens,
                                "Exceeded the maximun token limit(%d)", max_tokens);
 
-        size_t bytes_per = sizeof(float) * head_dim_ * head_cnt_;
-        size_t bytes = bytes_per * seqs_len;
-        size_t padding_offset = padding_cnt_ * bytes_per;
+        std::size_t bytes_per = sizeof(float) * head_dim_ * head_cnt_;
+        std::size_t bytes = bytes_per * seqs_len;
+        std::size_t padding_offset = padding_cnt_ * bytes_per;
         cudaMemcpyAsync(k_padding_ + padding_offset, k, bytes, cudaMemcpyDeviceToHost, stream);
         cudaMemcpyAsync(v_padding_ + padding_offset, v, bytes, cudaMemcpyDeviceToHost, stream);
         auto cuda_error = cudaStreamSynchronize(stream);
@@ -74,18 +74,23 @@ void Attention::cache_fp32(const void *k,
     }
 }
 
-std::vector<float> Attention::forward_decode_fp32(const void *q, 
-                                                  int q_head_cnt, 
-                                                  int q_head_dim, 
-                                                  int topk)
+void Attention::forward_fp32(const float *q,
+                             int q_head_cnt,
+                             int q_head_dim,
+                             int topk,
+                             float *output,
+                             cudaStream_t stream)
 {
     auto metric = get_metric(MetricType::METRIC_IP, VectorType::VECTOR_FP32);
     VATTN_ASSERT(metric != nullptr);
+    VATTN_THROW_IF_NOT_MSG(q != nullptr, "Invalid query");
+    VATTN_THROW_IF_NOT_MSG(output != nullptr, "Invalid output");
+    VATTN_THROW_IF_NOT_FMT(q_head_dim != head_dim_,
+                           "Invalid query head_dim(%d) != KV head_dim(%d)",
+                           q_head_dim, head_dim_);
 
-    std::vector<float> output(head_dim_ * head_cnt_);
-
-    size_t bytes = sizeof(float) * head_dim_;
-    size_t kv_size = topk + padding_cnt_;
+    std::size_t bytes = sizeof(float) * head_dim_;
+    std::size_t kv_size = topk + padding_cnt_;
     auto labels = search_fp32(q, q_head_cnt, q_head_dim, topk);
     std::vector<float> scores(q_head_dim * kv_size);
     for (int i = 0; i < q_head_cnt; ++i) {
@@ -114,7 +119,7 @@ std::vector<float> Attention::forward_decode_fp32(const void *q,
         }
 
         // matmal V (prefill topk)
-        float *output_ptr = output.data() + i * head_dim_;
+        float *output_ptr = output + i * head_dim_;
         const float *v_prefill_ptr = (const float *)v_prefill_ + i * head_cnt_ * head_dim_;
         for (int j = 0; j < topk; ++j) {
             const float *v_ptr = v_prefill_ptr + labels_ptr[j] * head_dim_;
@@ -127,7 +132,6 @@ std::vector<float> Attention::forward_decode_fp32(const void *q,
             compute_v_fp32(output_ptr, v_ptr, scores_ptr[j + topk], head_dim_);
         }
     }
-    return output;
 }
     
 std::vector<int> Attention::search_fp32(const void *q, int q_head_cnt, int q_head_dim, int topk)
@@ -143,13 +147,13 @@ std::vector<int> Attention::search_fp32(const void *q, int q_head_cnt, int q_hea
     VATTN_THROW_IF_NOT_FMT(q != nullptr, "Invalid Q(%p)", q);
 
     std::vector<const float *> qs(q_head_cnt);
-    for (size_t i = 0; i < qs.size(); ++i) {
+    for (std::size_t i = 0; i < qs.size(); ++i) {
         qs[i] = (const float *)q + q_head_dim * i;
     }
 
     std::vector<int> label(topk * q_head_cnt);
     std::vector<int *> labels(q_head_cnt);
-    for (size_t i = 0; i < labels.size(); ++i) {
+    for (std::size_t i = 0; i < labels.size(); ++i) {
         labels[i] = label.data() + i * topk;
     }
     kvcache_index->search(q_head_cnt, qs.data(), topk, labels.data());
