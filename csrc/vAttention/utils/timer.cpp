@@ -1,6 +1,6 @@
 #include "utils/timer.h"
 
-VATTN_NAMESPACE_BEGIN
+VCACHE_NAMESPACE_BEGIN
 
 Timer::Timer() 
 {
@@ -39,4 +39,4 @@ int64_t Timer::get_millisecs()
         std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-VATTN_NAMESPACE_END
+VCACHE_NAMESPACE_END
