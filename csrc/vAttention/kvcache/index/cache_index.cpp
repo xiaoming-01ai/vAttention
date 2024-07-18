@@ -3,21 +3,22 @@
 
 VATTN_NAMESPACE_BEGIN
     
-CacheIndex::CacheIndex(int head_dim) : vector_dim(head_dim)
+CacheIndex::CacheIndex(int head_dim) 
+    : vector_dim(head_dim),
+      vector_bytes(0),
+      keys_seqs(0),
+      keys_heads(0), 
+      keys(nullptr)
 { }
     
-void CacheIndex::bind_fp32(int heads, int seqs, const void **keys)
+void CacheIndex::bind_fp32(int seqs_len, int head_size, const void *keys)
 {
     vector_bytes = sizeof(float) * vector_dim;
-    keys_seqs = seqs;
-    keys_heads = heads;
-    vector_data.resize(keys_heads);
-    for (int i = 0; i < keys_heads; ++i) {
-        vector_data[i] = keys[i];
-    }
+    keys_seqs = seqs_len;
+    keys_heads = head_size;
 }
 
-void CacheIndex::bind_bf16(int heads, int seqs, const void **q)
+void CacheIndex::bind_bf16(int seqs_len, int head_size, const void *keys)
 {
     VATTN_ASSERT_MSG(false, "BF16 not support now");
 }

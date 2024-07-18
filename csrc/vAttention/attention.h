@@ -26,26 +26,16 @@ public:
                       int head_cnt,
                       int head_dim,
                       int topk,
+                      float scale,
                       float *output,
                       cudaStream_t stream);
 
     void release();
 
-private:
-    std::vector<int> search_fp32(const void *q, int head_cnt, int head_dim, int topk);
-
-private:
     int head_cnt_;
     int head_dim_;
 
-    int max_tokens_;
-    int padding_cnt_;
-
-    char *k_prefill_{nullptr};
-    char *v_prefill_{nullptr};
-    char *k_padding_{nullptr};
-    char *v_padding_{nullptr};
-    KVCachePtr kvcache_index{nullptr};
+    KVCachePtr kvcache{nullptr};
 
     std::string cache_desc_;
 };

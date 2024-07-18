@@ -173,7 +173,6 @@ inline float ip_metric_typed<float>(const float *lhs, const float *rhs, size_t s
         diff = lhs[0] - rhs[0];
         res += diff * diff;
     }
-
     return res;
 }
 

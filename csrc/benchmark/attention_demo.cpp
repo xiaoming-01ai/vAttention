@@ -1,7 +1,8 @@
-#include "vattn.h"
-#include "utils/file.h"
-#include "common/vattn_assert.h"
+// #include "vattn.h"
 #include "attention.h"
+#include "common/vattn_assert.h"
+#include "utils/file.h"
+#include "utils/util.h"
 
 VATTN_NAMESPACE_USE
 
@@ -49,6 +50,12 @@ int main(int argc, char *argv[])
     cudaMemcpy(d_v, v_str.data(), v_nbytes, cudaMemcpyHostToDevice);
 
     attn.cache_fp32(d_k, d_v, seqs_len, kv_head_cnt, kv_head_dim, 4096, 0);
+
+    std::vector<float> output(q_head_cnt * q_head_dim, 0);
+    float scale = 0.08838834764831845f;
+    attn.forward_fp32((const float *)q_str.data(), q_head_cnt, q_head_dim, 1024, scale, output.data(), 0);
+
+    print_value<float>("output:", output.data(), q_head_dim, 16);
     
     return 0;
 }

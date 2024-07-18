@@ -5,10 +5,11 @@
 
 VATTN_NAMESPACE_BEGIN
 
-void CacheIndexFlat::bind_fp32(int heads, int seqs, const void **keys) 
+void CacheIndexFlat::bind_fp32(int seqs_len, int head_size, const void *keys) 
 {
-    CacheIndex::bind_fp32(heads, seqs, keys);
+    CacheIndex::bind_fp32(seqs_len, head_size, keys);
     metric = get_metric(METRIC_IP, VectorType::VECTOR_FP32);
+    this->keys = keys;
 }
     
 int CacheIndexFlat::search(int heads, const float **q, int k, int **labels) const
@@ -21,6 +22,7 @@ int CacheIndexFlat::search(int heads, const float **q, int k, int **labels) cons
     VATTN_THROW_IF_NOT(labels != nullptr);
 
     // not enough keys to search. return all keys
+    fprintf(stderr,"key_seqs %d\n", keys_seqs);
     if (k >= keys_seqs) {
         for (int i = 0; i < keys_seqs; ++i) {
             labels[0][i] = i;
@@ -35,11 +37,10 @@ int CacheIndexFlat::search(int heads, const float **q, int k, int **labels) cons
 
     int group = heads / keys_heads;
     for (int i = 0; i < heads; ++i) {
-        const char *vector_ptr = (const char *)vector_data[i / group];
         float *scores_ptr = scores.data() + (size_t)i * keys_seqs;
         #pragma omp parallel for num_threads(heads / 2)
         for (int j = 0; j < keys_seqs; ++j) {
-            scores_ptr[j] = metric(q[i], vector_ptr + j * vector_bytes, vector_bytes);
+            scores_ptr[j] = metric(q[i], get_key(j, i), vector_bytes);
         }
     }
         

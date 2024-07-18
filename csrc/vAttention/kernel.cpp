@@ -10,7 +10,8 @@ void compute_v_fp32(float *dst, const float *src, float scale, int size)
     const float *aligned_end = src + ((size >> 4) << 4);
     __m512 scale512 = _mm512_set1_ps(scale);
     for (; src != aligned_end; src += 16, dst += 16) {
-	    _mm512_store_ps(dst, _mm512_fmadd_ps(scale512, _mm512_loadu_ps(src), _mm512_loadu_ps(dst)));
+        auto dst512 = _mm512_fmadd_ps(scale512, _mm512_loadu_ps(src), _mm512_loadu_ps(dst));
+	    _mm512_storeu_ps(dst, dst512);
     }
 
     aligned_end = src + (((end - src) >> 3) << 3);
