@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/csrc/vAttention",
-                "/usr/local/cuda-12/targets/x86_64-linux/include/",
+                "/usr/local/cuda/targets/x86_64-linux/include/",
                 "/usr/include/"
             ],
             "defines": [],

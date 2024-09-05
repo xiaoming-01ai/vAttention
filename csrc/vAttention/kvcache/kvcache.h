@@ -10,10 +10,6 @@ struct KVCache {
 
     void cache_fp32(int seqs, const void *k, const void *v, cudaStream_t stream);
     void cache_bf16(int seqs, const void *k, const void *v, cudaStream_t stream);
-    void cache(int seqs, int dsize, const void *k, const void *v, cudaStream_t stream);
-    // {
-    //     VATTN_ASSERT_MSG(false, "BF16 cache not support now");
-    // }
 
     int search_fp32(const void *q, int q_head_size, int k, int *labels);
     int search_bf16(const void *q, int q_head_size, int k, int *labels)
