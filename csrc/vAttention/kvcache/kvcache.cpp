@@ -23,7 +23,7 @@ CacheIndexPtr create_index(int head_dim, const std::string &index_desc)
     fprintf(stderr, "create index: %s\n", index_desc.c_str());
     if (match("FSPQ([0-9]+)")) {
         int M = std::stoi(sm[1].str());
-        // index.reset(new CacheIndexFastScanPQ(head_dim, M));
+        index.reset(new CacheIndexFastScanPQ(head_dim, M));
     } else if (match("FLAT")) {
         index.reset(new CacheIndexFlat(head_dim));
     } else { 
